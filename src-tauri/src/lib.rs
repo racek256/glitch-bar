@@ -4,12 +4,33 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+mod widget_loader; // declares widget_loader.rs as a module
+mod widget_api;    // declare other modules
+mod utils;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+
+
+
 pub fn run() {
-    tauri::Builder::default()
+    // Load widgets
+    let widget_path = utils::get_widgets_path();
+    utils::verify_config(&widget_path);
+
+
+    widget_api::widget_server(&widget_path);
+
+    // Now i need http server that servers list of widget and widget html of choice
+    // GET /           Json list of widgets
+    // GET /WidgetName Html of specific widget
+    
+    
+    
+    /*tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+    */
 }
