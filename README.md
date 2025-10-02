@@ -1,1 +1,1 @@
-# This project is in early development pleas wait for first development release
+# This project is in early development please wait for first development release
