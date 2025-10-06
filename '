@@ -1,0 +1,30 @@
+
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+import GridLayout from "react-grid-layout";
+import Widget from '../components/widget';
+export default function EditorScreen({widgetsarr}) {
+
+  return (
+	 <div className="m-5 w-full">
+  <div className="relative aspect-[2/1] bg-gray-950 overflow-hidden rounded-lg shadow-lg">
+    <GridLayout
+      compactType={null}
+      className="absolute inset-0"
+      cols={12}
+      rowHeight={30}
+      width={1200}
+      isResizable
+      resizeHandles={['se']}
+    >
+      {widgetsarr.map((e,i)=>(
+        <div key={i} data-grid={{x:i,y:1,w:1,h:2}}>
+          <Widget filename={e.widget_name}/>
+        </div>
+      ))}
+    </GridLayout>
+  </div>
+</div> 
+  );
+}
+

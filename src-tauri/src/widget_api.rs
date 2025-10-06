@@ -1,17 +1,15 @@
 use axum::{
-    routing::{get,post,},
-    http::StatusCode,
-    extract::{State},
-    Json, Router,
+    http::{HeaderValue, Method}, 
+    routing::{get,post,}, Router,
 };
-use serde::{Deserialize, Serialize};
+use crate::router::{get_widgets, create_widget, edit_preset, modify_widget, get_widget, get_presets, AppState, FileWriteStruct};
+use serde::{Deserialize};
+use tower_http::cors::{CorsLayer};
 
 
-use warp::filters::fs::file;
-use crate::widget_loader::{self};
-use serde_json::{Value, json};
+use crate::widget_loader::{self, WidgetStruct, PresetStruct};
 use notify::{Event, RecursiveMode, Result, Watcher};
-use std::{path::Path,fs, sync::{mpsc, Arc, Mutex}};
+use std::{path::Path, sync::{mpsc, Arc, Mutex}};
 use tokio;
 
 
@@ -25,12 +23,14 @@ pub async fn widget_server(widget_path:String)->Result<()>{
     watcher.watch(Path::new(&widget_path), RecursiveMode::Recursive)?;
     
     println!("Loading widgets: ");
-    let widgets = Arc::new(Mutex::new(widget_loader::load(&widget_path)));
-
+    let widgets = Arc::new(Mutex::new(widget_loader::load_widgets(&widget_path)));
+    let presets = Arc::new(Mutex::new(widget_loader::load_presets(&widget_path)));
+    
     let widgets_watch = Arc::clone(&widgets);
+    let presets_watch = Arc::clone(&presets);
     let widgets_path_watch = Arc::new(widget_path.clone());
 
-// Monitor for changes
+    // Monitor for changes
     tokio::spawn(async move {
      for res in rx{
          match res {
@@ -41,8 +41,9 @@ pub async fn widget_server(widget_path:String)->Result<()>{
                          ) => {
                          println!("Reloading Widgets: ");
                          let mut data = widgets_watch.lock().unwrap();
-                         *data = widget_loader::load(&widgets_path_watch);
-
+                         *data = widget_loader::load_widgets(&widgets_path_watch);
+                         let mut preset_data = presets_watch.lock().unwrap();
+                         *preset_data = widget_loader::load_presets(&widgets_path_watch)
 
                      },
                      _=> {}
@@ -58,18 +59,26 @@ pub async fn widget_server(widget_path:String)->Result<()>{
     
 
 
-    let widgets_clone = widgets.clone();
     let widgets_path_state = Arc::new(widget_path.clone());
-
-
-    // Create axum app
-    let app = Router::new()
-        .route("/", get(Json(json!(widgets_clone)))) 
-        .route("/create",post(create_widget))
-        .route("/modify",post(modify_widget))
+        let app = Router::new()
+        .route("/", get(get_widgets)) 
+        .route("/widgets", get(get_widgets)) 
+        .route("/create/widget",post(create_widget))
+        .route("/modify/preset",post(edit_preset))
+        .route("/presets",post(get_presets))
+        .route("/modify/widget",post(modify_widget))
+        .route("/widgets/{id}",get(get_widget))
         .with_state(AppState {
-            filepath:widgets_path_state
-        });
+            filepath:widgets_path_state,
+            widgets:widgets,
+            presets:presets
+        }).layer(
+        CorsLayer::new()
+            .allow_origin("http://localhost:1420".parse::<HeaderValue>().unwrap())
+            .allow_methods([Method::GET]),
+        );
+
+
 
         
 
@@ -79,69 +88,5 @@ pub async fn widget_server(widget_path:String)->Result<()>{
     axum::serve(listener,app).await.unwrap();
 
     Ok(())
-}
-
-
-
-async fn create_widget(
-     State(state): State<AppState>,
-     Json(payload): Json<FileWriteStruct>
-    ) -> String{
-    let new_file_path = format!("{}/{}.html", state.filepath, payload.filename);
-    
-    let exists = fs::exists(&new_file_path);
-    match exists{
-        Ok(false) => println!("new file will be created at: {} with code: {}", new_file_path, payload.html),
-        Ok(true) => return "File already exists".to_string(),
-        _ => println!("If you managed to trigger this error you are magician")
-
-    };
-
-    let response = fs::write(new_file_path, payload.html); 
-
-    match response{
-        Ok(_) => return "File created succesfully".to_string(),
-        Err(e) => return format!("File failed to create with error: {}", e)
-    }
-
-
-}
-
-
-async fn modify_widget(
-     State(state): State<AppState>,
-     Json(payload): Json<FileWriteStruct>
-    ) -> String{
-    let new_file_path = format!("{}/{}.html", state.filepath, payload.filename);
-    
-    let exists = fs::exists(&new_file_path);
-    match exists{
-        Ok(true) => println!("This file will be modified with code:  {} with code: {}", new_file_path, payload.html),
-        Ok(false) => return "File doesnt exist yet please create it first".to_string(),
-        _ => println!("If you managed to trigger this error you are magician")
-
-    };
-
-    let response = fs::write(new_file_path, payload.html); 
-
-    match response{
-        Ok(_) => return "File created succesfully".to_string(),
-        Err(e) => return format!("File failed to create with error: {}", e)
-    }
-
-
-}
-
-
-
-#[derive(Deserialize)]
-struct FileWriteStruct{
-    html:String,
-    filename:String,
-}
-
-#[derive(Clone)]
-struct AppState{
-    filepath:Arc<String>,
 }
 

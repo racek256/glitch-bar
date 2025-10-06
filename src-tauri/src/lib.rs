@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
-
+mod router;
 mod widget_loader; // declares widget_loader.rs as a module
 mod widget_api;    // declare other modules
 mod utils;
@@ -22,13 +22,11 @@ pub async fn run() {
     // GET /WidgetName Html of specific widget
     
     
-/*    
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-  */  
     signal::ctrl_c().await.unwrap()
 }
