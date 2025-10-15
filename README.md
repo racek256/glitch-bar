@@ -1,1 +1,1 @@
-# This project is in early development please wait for first development release
+# Development paused until i learn how to work with web assembely and yaw framework (I dont want to touch javascript anymore)
